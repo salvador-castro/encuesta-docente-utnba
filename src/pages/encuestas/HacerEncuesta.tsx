@@ -46,7 +46,7 @@ const YEARS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i)
 type Step = 1 | 2 | 3
 
 export default function HacerEncuesta() {
-  const { user } = useAuth()
+  const { user, perfil } = useAuth()
   const [step, setStep] = useState<Step>(1)
   const [docente, setDocente] = useState<Docente | null>(null)
   const [asignaturas, setAsignaturas] = useState<Asignatura[]>([])
@@ -63,14 +63,52 @@ export default function HacerEncuesta() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    supabase.from('asignaturas').select('*').order('nombre').then(({ data }) => {
-      if (data) setAsignaturas(data)
-    })
+    // Cargar modalidades
     supabase.from('modalidades').select('*').order('id').then(({ data, error }) => {
       if (data && data.length > 0 && !error) setModalidades(data)
       else setModalidades(FALLBACK_MODALIDADES)
     })
   }, [])
+
+  useEffect(() => {
+    // Cargar asignaturas filtradas por la carrera del estudiante + comunes (ciencias básicas)
+    if (!perfil) return
+    if (!perfil.carrera_id) {
+      setAsignaturas([])
+      return
+    }
+
+    const cargarAsignaturas = async () => {
+      // Paso 1: IDs asignados a la carrera del estudiante
+      const { data: propias } = await supabase
+        .from('carreras_asignaturas')
+        .select('asignatura_id')
+        .eq('carrera_id', perfil.carrera_id)
+
+      // Paso 2: todos los IDs que tienen asignación a ALGUNA carrera
+      const { data: todas } = await supabase
+        .from('carreras_asignaturas')
+        .select('asignatura_id')
+
+      const idsCarrera = (propias ?? []).map((r) => r.asignatura_id)
+      const idsAsignados = new Set((todas ?? []).map((r) => r.asignatura_id))
+
+      // Paso 3: buscar las asignaturas de la carrera + las que no están asignadas a nadie (comunes)
+      const { data: todasAsignaturas } = await supabase
+        .from('asignaturas')
+        .select('*')
+        .order('nombre')
+
+      if (todasAsignaturas) {
+        const filtradas = todasAsignaturas.filter(
+          (a) => idsCarrera.includes(a.id) || !idsAsignados.has(a.id)
+        )
+        setAsignaturas(filtradas)
+      }
+    }
+
+    cargarAsignaturas()
+  }, [perfil])
 
   const handleScoreChange = (index: number, value: number) => {
     const newScores = [...scores]
@@ -120,7 +158,7 @@ export default function HacerEncuesta() {
           <div className="card-body success-screen">
             <div className="success-icon">
               <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-                <path d="M8 18l7 7 13-14" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 18l7 7 13-14" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
             <h2 className="success-title">¡Encuesta enviada con éxito!</h2>
@@ -175,8 +213,8 @@ export default function HacerEncuesta() {
           <div className="card-header">
             <div className="card-header-icon">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <circle cx="6" cy="6" r="4" stroke="white" strokeWidth="1.5"/>
-                <path d="M10 10l4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="6" cy="6" r="4" stroke="white" strokeWidth="1.5" />
+                <path d="M10 10l4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </div>
             <span className="card-title">Paso 1 — Buscar Docente</span>
@@ -204,8 +242,8 @@ export default function HacerEncuesta() {
           <div className="card-header">
             <div className="card-header-icon">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="2" y="2" width="12" height="12" rx="2" stroke="white" strokeWidth="1.5"/>
-                <path d="M5 8h6M5 5.5h4M5 10.5h3" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
+                <rect x="2" y="2" width="12" height="12" rx="2" stroke="white" strokeWidth="1.5" />
+                <path d="M5 8h6M5 5.5h4M5 10.5h3" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
               </svg>
             </div>
             <span className="card-title">Paso 2 — Datos del Curso</span>
@@ -217,20 +255,30 @@ export default function HacerEncuesta() {
             <div className="course-form">
               <div className="form-group">
                 <label className="form-label" htmlFor="asignatura">Asignatura *</label>
-                <select
-                  id="asignatura"
-                  className="form-select"
-                  value={asignaturaId}
-                  onChange={(e) => setAsignaturaId(e.target.value)}
-                  required
-                >
-                  <option value="">Seleccioná la asignatura...</option>
-                  {asignaturas.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.nombre}{a.codigo ? ` (${a.codigo})` : ''}
-                    </option>
-                  ))}
-                </select>
+                {!perfil?.carrera_id ? (
+                  <p style={{ color: '#e57373', fontSize: 13, marginTop: 6 }}>
+                    No tenés una carrera asignada en tu perfil. Por favor completá tu perfil antes de hacer una encuesta.
+                  </p>
+                ) : asignaturas.length === 0 ? (
+                  <p style={{ color: '#888', fontSize: 13, marginTop: 6 }}>
+                    No se encontraron asignaturas para tu carrera.
+                  </p>
+                ) : (
+                  <select
+                    id="asignatura"
+                    className="form-select"
+                    value={asignaturaId}
+                    onChange={(e) => setAsignaturaId(e.target.value)}
+                    required
+                  >
+                    <option value="">Seleccioná la asignatura...</option>
+                    {asignaturas.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.nombre}{a.codigo ? ` (${a.codigo})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div className="form-row">
                 <div className="form-group">
@@ -283,7 +331,7 @@ export default function HacerEncuesta() {
           <div className="card-header">
             <div className="card-header-icon">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8h10M8 3v10" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M3 8h10M8 3v10" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </div>
             <span className="card-title">Paso 3 — Encuesta</span>
@@ -315,6 +363,7 @@ export default function HacerEncuesta() {
                       className="slider-input"
                       min={0}
                       max={100}
+                      step={10}
                       value={scores[i]}
                       style={{ '--val': `${scores[i]}%` } as React.CSSProperties}
                       onChange={(e) => handleScoreChange(i, Number(e.target.value))}

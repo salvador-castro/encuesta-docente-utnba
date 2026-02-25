@@ -8,6 +8,7 @@ interface Perfil {
   nombre: string | null
   apellido: string | null
   padron: string | null
+  carrera_id: number | null
   rol: 'admin' | 'estudiante'
 }
 
@@ -27,8 +28,8 @@ const AuthContext = createContext<AuthContextType>({
   perfil: null,
   isAdmin: false,
   loading: true,
-  signOut: async () => {},
-  refreshPerfil: async () => {},
+  signOut: async () => { },
+  refreshPerfil: async () => { },
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
