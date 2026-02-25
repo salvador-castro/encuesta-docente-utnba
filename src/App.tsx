@@ -12,6 +12,7 @@ import HacerEncuesta from './pages/encuestas/HacerEncuesta'
 import VerEncuestas from './pages/encuestas/VerEncuestas'
 import AdminUsuarios from './pages/admin/Usuarios'
 import AdminEncuestas from './pages/admin/EncuestasAdmin'
+import { Analytics } from '@vercel/analytics/react'
 import './index.css'
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -45,6 +46,7 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <Analytics />
       </BrowserRouter>
     </AuthProvider>
   )
