@@ -34,8 +34,8 @@ interface EncuestaRow {
 }
 
 function promedio(e: EncuestaRow): number {
-  const keys = ['p01','p02','p03','p04','p05','p06','p07','p08','p09','p10',
-    'p11','p12','p13','p14','p15','p16','p17','p18','p19','p20','p21','p22','p23'] as const
+  const keys = ['p01', 'p02', 'p03', 'p04', 'p05', 'p06', 'p07', 'p08', 'p09', 'p10',
+    'p11', 'p12', 'p13', 'p14', 'p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22', 'p23'] as const
   const total = keys.reduce((acc, k) => acc + (e[k as keyof EncuestaRow] as number), 0)
   return Math.round(total / 23)
 }
@@ -50,6 +50,7 @@ export default function AdminEncuestas() {
   const [encuestas, setEncuestas] = useState<EncuestaRow[]>([])
   const [modalidades, setModalidades] = useState<Modalidad[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [filterAnio, setFilterAnio] = useState('')
   const [filterModalidad, setFilterModalidad] = useState('')
@@ -57,11 +58,45 @@ export default function AdminEncuestas() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
+    setError(null)
+
+    // 1. Traer encuestas sin join a perfiles (FK apunta a auth.users, no a perfiles)
+    const { data: encData, error: err } = await supabase
       .from('encuestas')
-      .select('*, docentes(apellido, nombre), asignaturas(nombre), perfiles(apellido, nombre, padron), modalidades(nombre)')
+      .select('*, docentes(apellido, nombre), asignaturas(nombre), modalidades(nombre)')
       .order('created_at', { ascending: false })
-    if (data) setEncuestas(data as EncuestaRow[])
+
+    if (err) {
+      setError(`${err.code}: ${err.message}`)
+      setLoading(false)
+      return
+    }
+
+    if (!encData) { setLoading(false); return }
+
+    // 2. Traer perfiles de los estudiante_id únicos
+    const ids = [...new Set(encData.map((e: { estudiante_id: string }) => e.estudiante_id).filter(Boolean))]
+    let perfilesMap: Record<string, { apellido: string | null; nombre: string | null; padron: string | null }> = {}
+
+    if (ids.length > 0) {
+      const { data: perfilesData } = await supabase
+        .from('perfiles')
+        .select('id, apellido, nombre, padron')
+        .in('id', ids)
+      if (perfilesData) {
+        perfilesData.forEach((p: { id: string; apellido: string | null; nombre: string | null; padron: string | null }) => {
+          perfilesMap[p.id] = { apellido: p.apellido, nombre: p.nombre, padron: p.padron }
+        })
+      }
+    }
+
+    // 3. Mergear perfiles en las encuestas
+    const merged = encData.map((e: { estudiante_id: string }) => ({
+      ...e,
+      perfiles: perfilesMap[e.estudiante_id] ?? null,
+    }))
+
+    setEncuestas(merged as unknown as EncuestaRow[])
     setLoading(false)
   }, [])
 
@@ -91,8 +126,8 @@ export default function AdminEncuestas() {
 
   if (selected) {
     const avg = promedio(selected)
-    const keys = ['p01','p02','p03','p04','p05','p06','p07','p08','p09','p10',
-      'p11','p12','p13','p14','p15','p16','p17','p18','p19','p20','p21','p22','p23']
+    const keys = ['p01', 'p02', 'p03', 'p04', 'p05', 'p06', 'p07', 'p08', 'p09', 'p10',
+      'p11', 'p12', 'p13', 'p14', 'p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22', 'p23']
     return (
       <div className="page-wrapper">
         <div className="page-header">
@@ -161,9 +196,9 @@ export default function AdminEncuestas() {
         <div className="card-header">
           <div className="card-header-icon">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="2" y="10" width="2" height="4" rx="1" fill="white"/>
-              <rect x="7" y="6" width="2" height="8" rx="1" fill="white"/>
-              <rect x="12" y="2" width="2" height="12" rx="1" fill="white"/>
+              <rect x="2" y="10" width="2" height="4" rx="1" fill="white" />
+              <rect x="7" y="6" width="2" height="8" rx="1" fill="white" />
+              <rect x="12" y="2" width="2" height="12" rx="1" fill="white" />
             </svg>
           </div>
           <span className="card-title">Todas las encuestas ({encuestas.length})</span>
@@ -190,6 +225,11 @@ export default function AdminEncuestas() {
             </select>
           </div>
 
+          {error && (
+            <div style={{ background: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontFamily: 'monospace', fontSize: 13 }}>
+              ⚠️ Error Supabase: {error}
+            </div>
+          )}
           {loading ? (
             <div className="loading-screen" style={{ height: 120 }}><div className="spinner" /></div>
           ) : (
