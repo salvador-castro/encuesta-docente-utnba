@@ -33,7 +33,8 @@ const PREGUNTAS = [
 interface EncuestaRow {
   id: string
   anio: number
-  modalidad: string
+  modalidad_id: number | null
+  modalidades: { nombre: string } | null
   asignaturas: { nombre: string; codigo: string | null } | null
   p01: number; p02: number; p03: number; p04: number; p05: number
   p06: number; p07: number; p08: number; p09: number; p10: number
@@ -51,11 +52,6 @@ function scoreColor(val: number): string {
   return '#ef4444'
 }
 
-function getModalidadLabel(m: string): string {
-  if (m === 'anual') return 'A'
-  if (m === 'cuatrimestral') return 'C'
-  return 'V'
-}
 
 
 export default function VerEncuestas() {
@@ -71,10 +67,10 @@ export default function VerEncuestas() {
 
     const { data } = await supabase
       .from('encuestas')
-      .select('*, asignaturas(nombre, codigo)')
+      .select('*, asignaturas(nombre, codigo), modalidades(nombre)')
       .eq('docente_id', d.id)
       .order('anio', { ascending: false })
-      .order('modalidad')
+      .order('modalidad_id')
 
     if (data) setEncuestas(data as EncuestaRow[])
     setLoading(false)
@@ -97,10 +93,11 @@ export default function VerEncuestas() {
   type GroupKey = string
   const groups: Record<GroupKey, { label: string; rows: EncuestaRow[] }> = {}
   encuestas.forEach((e) => {
-    const key = `${e.anio}-${e.modalidad}-${e.asignaturas?.nombre ?? ''}`
+    const modNombre = e.modalidades?.nombre ?? ''
+    const key = `${e.anio}-${e.modalidad_id}-${e.asignaturas?.nombre ?? ''}`
     if (!groups[key]) {
       groups[key] = {
-        label: `${e.anio} ${getModalidadLabel(e.modalidad)} — ${e.asignaturas?.nombre ?? ''}${e.asignaturas?.codigo ? ` (${e.asignaturas.codigo})` : ''}`,
+        label: `${e.anio} ${modNombre} — ${e.asignaturas?.nombre ?? ''}${e.asignaturas?.codigo ? ` (${e.asignaturas.codigo})` : ''}`,
         rows: [],
       }
     }

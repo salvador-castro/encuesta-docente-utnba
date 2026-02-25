@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 
+interface Modalidad { id: number; nombre: string }
+
 const PREGUNTAS_SHORT = [
   'Asistencia regular', 'Cumple calendario', 'Da a conocer evaluación',
   'Fechas parciales anticipadas', 'Tiempo ejercitación', 'Seguridad en temas',
@@ -15,7 +17,8 @@ const PREGUNTAS_SHORT = [
 interface EncuestaRow {
   id: string
   anio: number
-  modalidad: string
+  modalidad_id: number | null
+  modalidades: { nombre: string } | null
   created_at: string
   docentes: { apellido: string; nombre: string } | null
   asignaturas: { nombre: string } | null
@@ -45,6 +48,7 @@ function scoreColor(val: number): string {
 
 export default function AdminEncuestas() {
   const [encuestas, setEncuestas] = useState<EncuestaRow[]>([])
+  const [modalidades, setModalidades] = useState<Modalidad[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterAnio, setFilterAnio] = useState('')
@@ -55,13 +59,18 @@ export default function AdminEncuestas() {
     setLoading(true)
     const { data } = await supabase
       .from('encuestas')
-      .select('*, docentes(apellido, nombre), asignaturas(nombre), perfiles(apellido, nombre, padron)')
+      .select('*, docentes(apellido, nombre), asignaturas(nombre), perfiles(apellido, nombre, padron), modalidades(nombre)')
       .order('created_at', { ascending: false })
     if (data) setEncuestas(data as EncuestaRow[])
     setLoading(false)
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    supabase.from('modalidades').select('*').order('id').then(({ data }) => {
+      if (data) setModalidades(data)
+    })
+  }, [load])
 
   const filtered = encuestas.filter(e => {
     const q = search.toLowerCase()
@@ -72,14 +81,13 @@ export default function AdminEncuestas() {
       e.perfiles?.apellido?.toLowerCase().includes(q) ||
       e.perfiles?.padron?.toLowerCase().includes(q)
     const matchAnio = !filterAnio || String(e.anio) === filterAnio
-    const matchMod = !filterModalidad || e.modalidad === filterModalidad
+    const matchMod = !filterModalidad || String(e.modalidad_id) === filterModalidad
     return matchSearch && matchAnio && matchMod
   })
 
   const anios = [...new Set(encuestas.map(e => e.anio))].sort((a, b) => b - a)
 
-  const getModalidadLabel = (m: string) =>
-    m === 'anual' ? 'Anual' : m === 'cuatrimestral' ? 'Cuatrimestral' : 'Curso de Verano'
+  const getModalidadNombre = (e: EncuestaRow) => e.modalidades?.nombre ?? '—'
 
   if (selected) {
     const avg = promedio(selected)
@@ -98,7 +106,7 @@ export default function AdminEncuestas() {
             {selected.docentes?.apellido} {selected.docentes?.nombre}
           </div>
           <div className="docente-header-sub">
-            {selected.asignaturas?.nombre} · {selected.anio} · {getModalidadLabel(selected.modalidad)}
+            {selected.asignaturas?.nombre} · {selected.anio} · {getModalidadNombre(selected)}
           </div>
           <div className="general-score">
             <span className="general-score-label">Promedio:</span>
@@ -174,11 +182,11 @@ export default function AdminEncuestas() {
               <option value="">Todos los años</option>
               {anios.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
-            <select className="form-select" style={{ width: 180 }} value={filterModalidad} onChange={e => setFilterModalidad(e.target.value)}>
+            <select className="form-select" style={{ width: 200 }} value={filterModalidad} onChange={e => setFilterModalidad(e.target.value)}>
               <option value="">Todas las modalidades</option>
-              <option value="anual">Anual</option>
-              <option value="cuatrimestral">Cuatrimestral</option>
-              <option value="curso_verano">Curso de Verano</option>
+              {modalidades.map(m => (
+                <option key={m.id} value={m.id}>{m.nombre}</option>
+              ))}
             </select>
           </div>
 
@@ -212,7 +220,7 @@ export default function AdminEncuestas() {
                         <td className="docente-name">{e.docentes?.apellido} {e.docentes?.nombre}</td>
                         <td style={{ fontSize: 13 }}>{e.asignaturas?.nombre}</td>
                         <td>{e.anio}</td>
-                        <td style={{ fontSize: 13 }}>{getModalidadLabel(e.modalidad)}</td>
+                        <td style={{ fontSize: 13 }}>{getModalidadNombre(e)}</td>
                         <td style={{ fontSize: 13, color: '#888' }}>
                           {e.perfiles?.apellido || ''} {e.perfiles?.nombre || ''}
                           {e.perfiles?.padron ? ` (${e.perfiles.padron})` : ''}

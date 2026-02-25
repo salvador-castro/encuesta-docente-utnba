@@ -77,7 +77,6 @@ export default function DocenteSearch({ onSelect, selectedDocente }: DocenteSear
             <thead>
               <tr>
                 <th>Docente</th>
-                <th>Legajo</th>
                 <th></th>
               </tr>
             </thead>
@@ -90,7 +89,6 @@ export default function DocenteSearch({ onSelect, selectedDocente }: DocenteSear
                   <td className="docente-name">
                     {d.apellido} {d.nombre}
                   </td>
-                  <td>{d.legajo || '—'}</td>
                   <td>
                     <button
                       className={selectedDocente?.id === d.id ? 'btn-selected' : 'btn-link'}

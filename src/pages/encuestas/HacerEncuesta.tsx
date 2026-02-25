@@ -5,6 +5,14 @@ import DocenteSearch from '../../components/DocenteSearch'
 
 interface Docente { id: string; apellido: string; nombre: string; legajo: string | null }
 interface Asignatura { id: string; nombre: string; codigo: string | null }
+interface Modalidad { id: number; nombre: string }
+
+const FALLBACK_MODALIDADES: Modalidad[] = [
+  { id: 1, nombre: 'Anual' },
+  { id: 2, nombre: '1er Cuatrimestre' },
+  { id: 3, nombre: '2do Cuatrimestre' },
+  { id: 4, nombre: 'Curso de Verano' },
+]
 
 const PREGUNTAS = [
   '¿Asiste regularmente a clases?',
@@ -42,9 +50,10 @@ export default function HacerEncuesta() {
   const [step, setStep] = useState<Step>(1)
   const [docente, setDocente] = useState<Docente | null>(null)
   const [asignaturas, setAsignaturas] = useState<Asignatura[]>([])
+  const [modalidades, setModalidades] = useState<Modalidad[]>([])
   const [asignaturaId, setAsignaturaId] = useState('')
   const [anio, setAnio] = useState(CURRENT_YEAR)
-  const [modalidad, setModalidad] = useState('')
+  const [modalidadId, setModalidadId] = useState<number | ''>('')
   const [scores, setScores] = useState<number[]>(Array(23).fill(50))
   const [caracteristicas, setCaracteristicas] = useState('')
   const [observaciones, setObservaciones] = useState('')
@@ -57,6 +66,10 @@ export default function HacerEncuesta() {
     supabase.from('asignaturas').select('*').order('nombre').then(({ data }) => {
       if (data) setAsignaturas(data)
     })
+    supabase.from('modalidades').select('*').order('id').then(({ data, error }) => {
+      if (data && data.length > 0 && !error) setModalidades(data)
+      else setModalidades(FALLBACK_MODALIDADES)
+    })
   }, [])
 
   const handleScoreChange = (index: number, value: number) => {
@@ -66,7 +79,7 @@ export default function HacerEncuesta() {
   }
 
   const canGoStep2 = !!docente
-  const canGoStep3 = !!asignaturaId && !!modalidad
+  const canGoStep3 = !!asignaturaId && modalidadId !== ''
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,7 +95,7 @@ export default function HacerEncuesta() {
       docente_id: docente!.id,
       asignatura_id: asignaturaId,
       anio,
-      modalidad,
+      modalidad_id: modalidadId,
       caracteristicas_positivas: caracteristicas,
       observaciones,
       aspectos_a_mejorar: aspectos,
@@ -116,7 +129,7 @@ export default function HacerEncuesta() {
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn-primary" onClick={() => {
-                setStep(1); setDocente(null); setAsignaturaId(''); setModalidad('')
+                setStep(1); setDocente(null); setAsignaturaId(''); setModalidadId('')
                 setScores(Array(23).fill(50)); setCaracteristicas(''); setObservaciones(''); setAspectos(''); setSuccess(false)
               }}>
                 Nueva Encuesta
@@ -238,14 +251,14 @@ export default function HacerEncuesta() {
                   <select
                     id="modalidad"
                     className="form-select"
-                    value={modalidad}
-                    onChange={(e) => setModalidad(e.target.value)}
+                    value={modalidadId}
+                    onChange={(e) => setModalidadId(e.target.value === '' ? '' : Number(e.target.value))}
                     required
                   >
                     <option value="">Seleccioná...</option>
-                    <option value="anual">Anual</option>
-                    <option value="cuatrimestral">Cuatrimestral</option>
-                    <option value="curso_verano">Curso de Verano</option>
+                    {modalidades.map((m) => (
+                      <option key={m.id} value={m.id}>{m.nombre}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -281,7 +294,7 @@ export default function HacerEncuesta() {
             </p>
             <p style={{ color: '#555', fontSize: 14, marginBottom: 20 }}>
               {asignaturas.find(a => a.id === asignaturaId)?.nombre} — {anio} — {
-                modalidad === 'anual' ? 'Anual' : modalidad === 'cuatrimestral' ? 'Cuatrimestral' : 'Curso de Verano'
+                modalidades.find(m => m.id === modalidadId)?.nombre ?? ''
               }
             </p>
 
