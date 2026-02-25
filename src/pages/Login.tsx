@@ -28,7 +28,7 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo-area">
-          <div className="auth-logo">UTN</div>
+          <img src="/logoUTN.png" alt="UTN Logo" className="auth-logo" />
           <h1 className="auth-title">Encuesta Docente</h1>
           <p className="auth-subtitle">Facultad Regional Buenos Aires</p>
         </div>

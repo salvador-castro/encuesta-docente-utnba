@@ -50,7 +50,7 @@ export default function Register() {
       <div className="auth-page">
         <div className="auth-card">
           <div className="auth-logo-area">
-            <div className="auth-logo">UTN</div>
+            <img src="/logoUTN.png" alt="UTN Logo" className="auth-logo" />
           </div>
           <div className="alert alert-success">
             <strong>¡Cuenta creada!</strong> Revisá tu correo para confirmar tu cuenta.
@@ -67,7 +67,7 @@ export default function Register() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo-area">
-          <div className="auth-logo">UTN</div>
+          <img src="/logoUTN.png" alt="UTN Logo" className="auth-logo" />
           <h1 className="auth-title">Crear cuenta</h1>
           <p className="auth-subtitle">Facultad Regional Buenos Aires</p>
         </div>
