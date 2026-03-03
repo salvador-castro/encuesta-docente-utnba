@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import DocenteSearch from '../../components/DocenteSearch'
@@ -172,9 +173,9 @@ export default function HacerEncuesta() {
               }}>
                 Nueva Encuesta
               </button>
-              <a href="/encuestas/ver" className="btn-secondary" style={{ textDecoration: 'none', padding: '12px 24px', borderRadius: 8, fontWeight: 600, fontSize: 14, border: '1.5px solid #e0e3ea', color: '#1a1a2e' }}>
+              <Link to="/encuestas/ver" className="btn-secondary" style={{ textDecoration: 'none', padding: '12px 24px', borderRadius: 8, fontWeight: 600, fontSize: 14, border: '1.5px solid #e0e3ea', color: '#1a1a2e' }}>
                 Ver Encuestas
-              </a>
+              </Link>
             </div>
           </div>
         </div>
